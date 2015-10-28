@@ -1,0 +1,157 @@
+#!/usr/bin/env php
+<?php
+
+# Provide path to the letsencrypt script
+$letsencrypt = "/root/letsencrypt/letsencrypt-auto";
+
+# Provide API Infos
+$server["username"]     = "user";
+$server["password"]     = "password";
+$server["soap_uri"]     = "https://ispc.domain.tld:8080/remote/";
+
+$email                  = "user@domain.tld"; # Give email for cert creation
+
+/**************************************************************************************************************
+*                                                                                                             *
+*                                         HERE BE DRAGONS                                                     *
+*                                                                                                             *
+**************************************************************************************************************/
+
+# Include ISPConfig config file for DB connection
+require_once('/usr/local/ispconfig/server/lib/config.inc.php');
+
+# Get the domain
+echo "1. Get the domain name.\n";
+$domain = $argv[1];
+
+
+# Query the MySQL DB Directly whether $domain is a vhost
+echo "2. Query MySQL whether it's a vhost.\n";
+try {
+    $db = new PDO('mysql:host=' . $conf['db_host'] . ';dbname=' . $conf['db_database'], $conf['db_user'], $conf['db_password']);
+}
+catch (PDOException $e) {
+    echo "There was an unexpected error. Couldn't connect to the DB.";
+}
+$stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `domain` LIKE ? AND `type` LIKE 'vhost'");
+$stmt->execute(array($domain));
+$count = $stmt->rowCount();
+if ($count != 1) {
+    echo "Domain name '$domain' could not be found in the ISPC DB. Please try again.";
+    exit;
+}
+$row = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$domainInfo = $row[0];
+
+
+# Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
+echo "3. Run Let's Encrypt Tool\n";
+$output = shell_exec("$letsencrypt --agree-dev-preview --email '$email' --domains '$domain' --authenticator apache auth");
+if (strpos($output, 'Congratulations') === false) {
+    echo "Sorry, there was some error. Please check:\n";
+    echo $output;
+    exit;
+}
+
+
+# Read the SSL info into vars
+echo "4. Read SSL info into vars.\n";
+$cert     = file_get_contents('/etc/letsencrypt/live/' . $domain . '/cert.pem');
+$privkey  = file_get_contents('/etc/letsencrypt/live/' . $domain . '/privkey.pem');
+$bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem');
+
+
+
+# Insert SSL info via API
+echo "5. Insert SSL info via API.\n";
+$client = new SoapClient(
+    null,
+    array(
+        'location' => $server['soap_uri'] . 'index.php',
+        'uri'      => $server['soap_uri'],
+        'trace' => 1,
+        'stream_context'=> stream_context_create(
+        array(
+            'ssl'=> array(
+                'verify_peer'=>false,
+                'verify_peer_name'=>false
+            )
+        )
+    ),
+    'exceptions' => 1
+    )
+);
+try {
+    $session_id = $client->login($server['username'], $server['password']);
+    //* Parameters
+    $params = array(    'server_id'             => $domainInfo['server_id'],
+                        'ip_address'            => $domainInfo['ip_address'],
+                        'ipv6_address'          => $domainInfo['ipv6_address'],
+                        'domain'                => $domainInfo['domain'],
+                        'type'                  => $domainInfo['type'],
+                        'parent_domain_id'      => $domainInfo['parent_domain_id'],
+                        'vhost_type'            => $domainInfo['vhost_type'],
+                        'hd_quota'              => $domainInfo['hd_quota'],
+                        'traffic_quota'         => $domainInfo['traffic_quota'],
+                        'cgi'                   => $domainInfo['cgi'],
+                        'ssi'                   => $domainInfo['ssi'],
+                        'suexec'                => $domainInfo['suexec'],
+                        'errordocs'             => $domainInfo['errordocs'],
+                        'subdomain'             => $domainInfo['subdomain'],
+                        'ssl'                   => 'y',
+                        'php'                   => $domainInfo['php'],
+                        'fastcgi_php_version'   => $domainInfo['fastcgi_php_version'],
+                        'perl'                  => $domainInfo['perl'],
+                        'ruby'                  => $domainInfo['ruby'],
+                        'python'                => $domainInfo['python'],
+                        'active'                => $domainInfo['active'],
+                        'redirect_type'         => $domainInfo['redirect_type'],
+                        'redirect_path'         => $domainInfo['redirect_path'],
+                        'seo_redirect'          => $domainInfo['seo_redirect'],
+                        'rewrite_rules'         => $domainInfo['rewrite_rules'],
+                        'ssl_state'             => $domainInfo['ssl_state'],
+                        'ssl_locality'          => $domainInfo['ssl_locality'],
+                        'ssl_organisation'      => $domainInfo['ssl_organisation'],
+                        'ssl_organisation_unit' => $domainInfo['ssl_organisation_unit'],
+                        'ssl_country'           => $domainInfo['ssl_country'],
+                        'ssl_domain'            => $domain,
+                        'ssl_key'               => $privkey,
+                        'ssl_request'           => $domainInfo['ssl_request'],
+                        'ssl_cert'              => $cert,
+                        'ssl_bundle'            => $bundle,
+                        'ssl_action'            => 'save',
+                        'stats_password'        => $domainInfo['stats_password'],
+                        'stats_type'            => $domainInfo['stats_type'],
+                        'backup_interval'       => $domainInfo['backup_interval'],
+                        'backup_copies'         => $domainInfo['backup_copies'],
+                        'backup_excludes'       => $domainInfo['backup_excludes'],
+                        'document_root'         => $domainInfo['document_root'],
+                        'system_user'           => $domainInfo['system_user'],
+                        'system_group'          => $domainInfo['system_group'],
+                        'allow_override'        => $domainInfo['allow_override'],
+                        'php_fpm_use_socket'    => $domainInfo['php_fpm_use_socket'],
+                        'pm'                    => $domainInfo['pm'],
+                        'pm_max_children'       => $domainInfo['pm_max_children'],
+                        'pm_start_servers'      => $domainInfo['pm_start_servers'],
+                        'pm_min_spare_servers'  => $domainInfo['pm_min_spare_servers'],
+                        'pm_max_spare_servers'  => $domainInfo['pm_max_spare_servers'],
+                        'pm_process_idle_timeout' => $domainInfo['pm_process_idle_timeout'],
+                        'pm_max_requests'       => $domainInfo['pm_max_requests'],
+                        'php_open_basedir'      => $domainInfo['php_open_basedir'],
+                        'custom_php_ini'        => $domainInfo['custom_php_ini'],
+                        'apache_directives'     => $domainInfo['apache_directives'],
+                        'nginx_directives'      => $domainInfo['nginx_directives'],
+                        'proxy_directives'      => $domainInfo['proxy_directives'],
+                        'added_date'            => $domainInfo['added_date'],
+                        'added_by'              => $domainInfo['added_by']
+    );
+    $client->sites_web_domain_update($session_id, $domainInfo['server_id'], $domainInfo['domain_id'], $params);
+    $client->logout($session_id);
+    echo "Added SSL Certs to '$domain'\n";
+} catch (SoapFault $e) {
+    echo $client->__getLastResponse();
+    die('SOAP Error: '.$e->getMessage());
+}
+
+
+?>
