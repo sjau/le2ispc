@@ -4,6 +4,9 @@
 # Provide path to the letsencrypt script
 $letsencrypt = "/root/letsencrypt/letsencrypt-auto";
 
+# Provide the webserver you're using: apache or nginx
+$server["type"]         = "apache"
+
 # Provide API Infos
 $server["username"]     = "user";
 $server["password"]     = "password";
@@ -46,7 +49,7 @@ $domainInfo = $row[0];
 
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
 echo "3. Run Let's Encrypt Tool\n";
-$output = shell_exec("$letsencrypt --agree-dev-preview --email '$email' --domains '$domain' --authenticator apache auth");
+$output = shell_exec("$letsencrypt --agree-dev-preview --email '$email' --domains '$domain' --authenticator " . $server['type'] . " auth");
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
