@@ -47,9 +47,17 @@ $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $domainInfo = $row[0];
 
 
+# Check if ther's a 'www' subdomain set
+if ($domainInfo['subdomain'] == 'www') {
+    $domains = "--domains '$domain'";
+else {
+    $domains = "--domains '$domain' --domains 'www.$domain'";
+}
+
+
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
 echo "3. Run Let's Encrypt Tool\n";
-$output = shell_exec("$letsencrypt --agree-dev-preview --email '$email' --domains '$domain' --authenticator " . $server['type'] . " auth");
+$output = shell_exec("$letsencrypt --agree-dev-preview --email '$email' $domains --authenticator " . $server['type'] . " auth");
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
