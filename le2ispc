@@ -5,7 +5,7 @@
 $letsencrypt = "/root/letsencrypt/letsencrypt-auto";
 
 # Provide the webserver you're using: apache or nginx
-$server["type"]         = "apache"
+$server["type"]         = "apache";
 
 # Provide API Infos
 $server["username"]     = "user";
@@ -49,15 +49,19 @@ $domainInfo = $row[0];
 
 # Check if ther's a 'www' subdomain set
 if ($domainInfo['subdomain'] == 'www') {
-    $domains = "--domains '$domain'";
-else {
     $domains = "--domains '$domain' --domains 'www.$domain'";
+} else {
+    $domains = "--domains '$domain'";
 }
 
 
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
 echo "3. Run Let's Encrypt Tool\n";
-$output = shell_exec("$letsencrypt --agree-dev-preview --email '$email' $domains --authenticator " . $server['type'] . " auth");
+$output = shell_exec("$letsencrypt --agree-dev-preview --email '$email' $domains --authenticator " . $server['type'] . " certonly");
+
+#Webroot method:
+#https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
+
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
