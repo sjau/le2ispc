@@ -12,7 +12,8 @@ $server["username"]     = "user";
 $server["password"]     = "password";
 $server["soap_uri"]     = "https://ispc.domain.tld:8080/remote/";
 
-$email                  = "user@domain.tld"; # Give email for cert creation
+# Give email for cert creation
+$email                  = "user@domain.tld";
 
 /**************************************************************************************************************
 *                                                                                                             *
@@ -57,7 +58,7 @@ if ($domainInfo['subdomain'] == 'www') {
 
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
 echo "3. Run Let's Encrypt Tool\n";
-$output = shell_exec("$letsencrypt --agree-dev-preview --email '$email' $domains --authenticator " . $server['type'] . " certonly");
+$output = shell_exec("$letsencrypt --agree-dev-preview --rsa-key-size 4096 --email '$email' $domains --authenticator " . $server['type'] . " certonly");
 
 #Webroot method:
 #https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
