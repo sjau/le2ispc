@@ -15,6 +15,9 @@ $server["soap_uri"]     = "https://ispc.domain.tld:8080/remote/";
 # Give email for cert creation
 $email                  = "user@domain.tld";
 
+# Force Apache/Nginx to rewrite non-ssl to ssl
+$forceSSL               = "y";
+
 /**************************************************************************************************************
 *                                                                                                             *
 *                                         HERE BE DRAGONS                                                     *
@@ -50,19 +53,52 @@ $domainInfo = $row[0];
 
 # Check if ther's a 'www' subdomain set
 if ($domainInfo['subdomain'] == 'www') {
-    $domains = "--domains '$domain' --domains 'www.$domain'";
+    $domains = "-d '$domain' -d 'www.$domain'";
 } else {
-    $domains = "--domains '$domain'";
+    $domains = "-d '$domain'";
+}
+
+
+# Make sure webroot authentication works for both
+# https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
+if ( $server['type' == 'apache' ) {
+    $confFile='/etc/apache2/conf-available/letsencrypt-webroot.conf';
+    if ( ! file_exists($confFile) ) {
+        $file = fopen($confFile, "w") or die("Unable to open file!");
+        $txt = '
+            <IfModule mod_headers.c>
+                <LocationMatch "/.well-known/acme-challenge/*">
+                    Header set Content-Type "text/plain"
+                </LocationMatch>
+            </IfModule>
+        ';
+        fwrite($file, $txt);
+        fclose($file);
+        shell_exec("a2enmod headers rewrite");
+        shell_exec("a2enconf letsencrypt-webroot.conf");
+        shell_exec("systemctl reload apache2");
+    }
+} elseif ($server['type'] == 'nginx' ) {
+    if (strpos($domainInfo['nginx_directives'], '<LocationMatch "/.well-known/acme-challenge/*">') === false) {
+        # No acme-challenge rule detected, so lets add it
+        $domainInfo['nginx_directives'] = '
+            location ~ /.well-known/acme-challenge/(.*) {
+                default_type text/plain;
+            }
+            '
+            . $domainInfo['nginx_directives'];
+            shell_exec("systemctl reload nginx");
+    }
+} else {
+    echo "No valid server setting in the configuration. Please fix.";
+    exit;
 }
 
 
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
-echo "3. Run Let's Encrypt Tool\n";
-$output = shell_exec("$letsencrypt --agree-dev-preview --rsa-key-size 4096 --email '$email' $domains --authenticator " . $server['type'] . " certonly");
-
-#Webroot method:
-#https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
-
+echo "4. Run Let's Encrypt Tool\n";
+#$output = shell_exec("$letsencrypt --agree-dev-preview --renew-by-default --rsa-key-size 4096 --email '$email' $domains --authenticator " . $server['type'] . " certonly");
+$output = shell_exec("$letsencrypt --agree-dev-preview --renew-by-default --rsa-key-size 4096 -m '$email' $domains -a webroot --webroot-path " . $domainInfo['document_root'] . "/web certonly");
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
@@ -71,7 +107,7 @@ if (strpos($output, 'Congratulations') === false) {
 
 
 # Read the SSL info into vars
-echo "4. Read SSL info into vars.\n";
+echo "5. Read SSL info into vars.\n";
 $cert     = file_get_contents('/etc/letsencrypt/live/' . $domain . '/cert.pem');
 $privkey  = file_get_contents('/etc/letsencrypt/live/' . $domain . '/privkey.pem');
 $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem');
@@ -79,7 +115,7 @@ $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem')
 
 
 # Insert SSL info via API
-echo "5. Insert SSL info via API.\n";
+echo "6. Insert SSL info via API.\n";
 $client = new SoapClient(
     null,
     array(
@@ -99,7 +135,32 @@ $client = new SoapClient(
 );
 try {
     $session_id = $client->login($server['username'], $server['password']);
-    //* Parameters
+
+    # Check if Apache should force SSL
+    if ( $server['type'] == 'apache' && $forceSSL == 'y' ) {
+        # Check if the apache directives already contain forced rewrite
+        if (strpos($domainInfo['apache_directives'], 'RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}') === false) {
+            # No rewrite rules detected, so lets add it
+            $domainInfo['apache_directives'] = "
+                RewriteEngine On
+                RewriteCond %{HTTPS} off
+                RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+                "
+                . $domainInfo['apache_directives'];
+        }
+    } elseif ( $server['type'] == 'nginx' && $forceSSL == 'y' ) {
+        if (strpos($domainInfo['nginx_directives'], 'if ($scheme = http) {') === false) {
+            # No rewrite rules detected, so lets add it
+            $domainInfo['nginx_directives'] = '
+                if ($scheme = http) {
+                    return 301 https://$server_name$request_uri;
+                }
+                '
+                . $domainInfo['nginx_directives'];
+        }
+    }
+
+    # Parameters
     $params = array(    'server_id'             => $domainInfo['server_id'],
                         'ip_address'            => $domainInfo['ip_address'],
                         'ipv6_address'          => $domainInfo['ipv6_address'],
