@@ -18,6 +18,9 @@ $email                  = "user@domain.tld";
 # Force Apache/Nginx to rewrite non-ssl to ssl
 $forceSSL               = "y";
 
+# Server - uncomment if you're in beta
+#$beta                   = "--server https://acme-v01.api.letsencrypt.org/directory";
+
 /**************************************************************************************************************
 *                                                                                                             *
 *                                         HERE BE DRAGONS                                                     *
@@ -98,7 +101,7 @@ if ( $server['type' == 'apache' ) {
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
 echo "4. Run Let's Encrypt Tool\n";
 #$output = shell_exec("$letsencrypt --agree-dev-preview --renew-by-default --rsa-key-size 4096 --email '$email' $domains --authenticator " . $server['type'] . " certonly");
-$output = shell_exec("$letsencrypt --agree-dev-preview --renew-by-default --rsa-key-size 4096 -m '$email' $domains -a webroot --webroot-path " . $domainInfo['document_root'] . "/web certonly");
+$output = shell_exec("$letsencrypt --agree-dev-preview $beta --renew-by-default --rsa-key-size 4096 -m '$email' $domains -a webroot --webroot-path " . $domainInfo['document_root'] . "/web certonly");
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
