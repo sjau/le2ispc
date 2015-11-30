@@ -63,6 +63,7 @@ if ($domainInfo['subdomain'] == 'www') {
 
 
 # Make sure webroot authentication works for both
+echo "3. Prepare Server for webroot authentication.\n";
 # https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
 if ( $server['type'] == 'apache' ) {
     $confFile='/etc/apache2/conf-available/letsencrypt-webroot.conf';
@@ -100,8 +101,11 @@ if ( $server['type'] == 'apache' ) {
 
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
 echo "4. Run Let's Encrypt Tool\n";
-#$output = shell_exec("$letsencrypt --agree-dev-preview --renew-by-default --rsa-key-size 4096 --email '$email' $domains --authenticator " . $server['type'] . " certonly");
-$output = shell_exec("$letsencrypt --agree-dev-preview $beta --renew-by-default --rsa-key-size 4096 -m '$email' $domains -a webroot --webroot-path " . $domainInfo['document_root'] . "/web certonly");
+$webroot = $domainInfo['document_root'] . "/web";
+if($domainInfo['redirect_type'] == "L") {
+    $webroot .= $domainInfo['redirect_path'];
+}
+$output = shell_exec("$letsencrypt --agree-dev-preview $beta --renew-by-default --rsa-key-size 4096 -m '$email' $domains -a webroot --webroot-path " . $webroot . " certonly");
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
