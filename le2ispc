@@ -64,7 +64,7 @@ $domainInfo = $row[0];
 
 # Check if ther's a 'www' subdomain set
 $www_subdomain = 'www.' . $domain;
-if ($domainInfo['subdomain'] == 'www' && !in_array($www_subdomain, $subdomains)) {
+if (in_array($domainInfo['subdomain'], array('www','*')) && !in_array($www_subdomain, $subdomains)) {
     $domains = "-d '$domain' -d 'www.$domain'";
 } else {
     $domains = "-d '$domain'";
