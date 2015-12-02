@@ -111,6 +111,10 @@ if($domainInfo['redirect_type'] == "L") {
     $webroot .= $domainInfo['redirect_path'];
 }
 
+if(!isset($beta)) {
+	$beta = "";
+}	
+
 $command = "$letsencrypt --agree-dev-preview $beta --renew-by-default --rsa-key-size 4096 -m '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
 $output = shell_exec($command);
 
