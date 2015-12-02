@@ -30,6 +30,14 @@ $forceSSL               = "y";
 # Include ISPConfig config file for DB connection
 require_once('/usr/local/ispconfig/server/lib/config.inc.php');
 
+# Check valid call
+$USAGE = "Usage: $argv[0] top-level-domain [subdomain ...]";
+
+if (count($argv) < 2) {
+    echo $USAGE;
+    exit(1);
+}	
+
 # Get the domain
 echo "1. Get the domain name.\n";
 array_shift($argv);
