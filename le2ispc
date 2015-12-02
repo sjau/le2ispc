@@ -31,7 +31,7 @@ $forceSSL               = "y";
 require_once('/usr/local/ispconfig/server/lib/config.inc.php');
 
 # Check valid call
-$USAGE = "Usage: $argv[0] top-level-domain [subdomain ...]";
+$USAGE = "Usage: $argv[0] domain.tld [sub.domain.tld ...]";
 
 if (count($argv) < 2) {
     echo $USAGE;
