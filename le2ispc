@@ -30,10 +30,19 @@ $forceSSL               = "y";
 # Include ISPConfig config file for DB connection
 require_once('/usr/local/ispconfig/server/lib/config.inc.php');
 
+# Check valid call
+$USAGE = "Usage: $argv[0] domain.tld [sub.domain.tld ...]";
+
+if (count($argv) < 2) {
+    echo $USAGE;
+    exit(1);
+}	
+
 # Get the domain
 echo "1. Get the domain name.\n";
-$domain = $argv[1];
-
+array_shift($argv);
+$domain = array_shift($argv);
+$subdomains = $argv;
 
 # Query the MySQL DB Directly whether $domain is a vhost
 echo "2. Query MySQL whether it's a vhost.\n";
@@ -53,14 +62,18 @@ if ($count != 1) {
 $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $domainInfo = $row[0];
 
-
 # Check if ther's a 'www' subdomain set
-if ($domainInfo['subdomain'] == 'www') {
+$www_subdomain = 'www.' . $domain;
+if (in_array($domainInfo['subdomain'], array('www','*')) && !in_array($www_subdomain, $subdomains)) {
     $domains = "-d '$domain' -d 'www.$domain'";
 } else {
     $domains = "-d '$domain'";
 }
 
+# Add subdomains to domain list
+foreach ($subdomains as $subdomain) {
+    $domains .= " -d '$subdomain'";
+}
 
 # Make sure webroot authentication works for both
 echo "3. Prepare Server for webroot authentication.\n";
@@ -105,7 +118,14 @@ $webroot = $domainInfo['document_root'] . "/web";
 if($domainInfo['redirect_type'] == "L") {
     $webroot .= $domainInfo['redirect_path'];
 }
-$output = shell_exec("$letsencrypt --agree-dev-preview $beta --renew-by-default --rsa-key-size 4096 -m '$email' $domains -a webroot --webroot-path " . $webroot . " certonly");
+
+if(!isset($beta)) {
+	$beta = "";
+}	
+
+$command = "$letsencrypt --agree-dev-preview $beta --renew-by-default --rsa-key-size 4096 -m '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
+$output = shell_exec($command);
+
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;

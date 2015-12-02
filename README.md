@@ -20,5 +20,6 @@ Script to generate Let's Encrypt certs and add them to ISPConfig via API
 
 ## Run
 
-If you have put the script into a location in $PATH then just type:  ```letsencrypt domain.tld```
-If not, then go to the place where you have the le2ispc script and run: ```./letsencrypt domain.tld.```
+If you have put the script into a location in $PATH then just type:  ```le2ispc domain.tld```.
+If not, then go to the place where you have the le2ispc script and run: ```./le2ispc domain.tld```.
+You can optionally append any number of subdomains to be used as alternate names in your certificate, e.g.: ```le2ispc domain.tld sub1.domain.tld sub2.domain.tld```.
