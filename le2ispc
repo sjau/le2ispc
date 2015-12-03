@@ -39,6 +39,7 @@ if (count($argv) < 1) {
 # Get first arg
 $dry_run = false;
 $arg = array_shift($argv);
+$arg = array_shift($argv);
 if($arg == '-n' || $arg == '--dry-run') {
     $dry_run = true;
     $arg = array_shift($argv);
