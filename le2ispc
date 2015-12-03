@@ -29,17 +29,24 @@ $forceSSL               = "y";
 require_once('/usr/local/ispconfig/server/lib/config.inc.php');
 
 # Check valid call
-$USAGE = "Usage: $argv[0] domain.tld [sub.domain.tld ...]";
+$USAGE = "Usage: $prog [-n|--dry-run] domain.tld [sub.domain.tld ...]\n";
 
-if (count($argv) < 2) {
-    echo $USAGE;
-    exit(1);
-}	
+if (count($argv) < 1) {
+     echo $USAGE;
+     exit(1);
+}
+
+# Get first arg
+$dry_run = false;
+$arg = array_shift($argv);
+if($arg == '-n' || $arg == '--dry-run') {
+    $dry_run = true;
+    $arg = array_shift($argv);
+}
 
 # Get the domain
 echo "1. Get the domain name.\n";
-array_shift($argv);
-$domain = array_shift($argv);
+$domain = $arg;
 $subdomains = $argv;
 
 # Query the MySQL DB Directly whether $domain is a vhost
@@ -117,11 +124,12 @@ if($domainInfo['redirect_type'] == "L") {
     $webroot .= $domainInfo['redirect_path'];
 }
 
-if(!isset($beta)) {
-	$beta = "";
-}	
-
-$command = "$letsencrypt --text --agree-tos --agree-dev-preview --renew-by-default --rsa-key-size 4096 --email '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
+$command = "$letsencrypt --text --agree-tos --renew-by-default --rsa-key-size 4096 --email '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
+if ($dry_run) {
+    echo $command;
+    echo "\nNothing executed (dry-run)\n";
+    exit;
+}
 $output = shell_exec($command);
 
 if (strpos($output, 'Congratulations') === false) {
