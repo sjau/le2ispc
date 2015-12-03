@@ -29,7 +29,7 @@ $forceSSL               = "y";
 require_once('/usr/local/ispconfig/server/lib/config.inc.php');
 
 # Check valid call
-$USAGE = "Usage: $prog [-n|--dry-run] domain.tld [sub.domain.tld ...]\n";
+$USAGE = "Usage: $argv[0] [-n|--dry-run] domain.tld [sub.domain.tld ...]\n";
 
 if (count($argv) < 1) {
      echo $USAGE;
@@ -118,9 +118,22 @@ if ( $server['type'] == 'apache' ) {
 }
 
 
-# Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
-echo "4. Run Let's Encrypt Tool\n";
+# Create ~/.well-known/acme-challenge folders and set correct permissions
+echo "4. Create folder in web root for acme-challenge\n";
 $webroot = $domainInfo['document_root'] . "/web";
+@mkdir("$webroot/.well-known/acme-challenge", 0777, true);
+chmod("$webroot/.well-known", 0777);
+chmod("$webroot/.well-known/acme-challenge", 0777);
+
+
+# Disable temporarily the .htaccess file in webroot
+echo "5. Disable temporarily the .htaccess file in webroot.\n";
+$curTime=time();
+rename("$webroot/.htaccess", "$webroot/.htaccess-$curTime-letsencrypt");
+
+
+# Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
+echo "6. Run Let's Encrypt Tool\n";
 if($domainInfo['redirect_type'] == "L") {
     $webroot .= $domainInfo['redirect_path'];
 }
@@ -129,6 +142,8 @@ $command = "$letsencrypt --text --agree-tos --renew-by-default --rsa-key-size 40
 if ($dry_run) {
     echo $command;
     echo "\nNothing executed (dry-run)\n";
+    # Restore .htaccess
+    rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
     exit;
 }
 $output = shell_exec($command);
@@ -136,12 +151,19 @@ $output = shell_exec($command);
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
+    # Restore .htacess
+    rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
     exit;
 }
 
 
+# Restore .htaccess again
+echo "7. Restore .htaccess again.\n";
+rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
+
+
 # Read the SSL info into vars
-echo "5. Read SSL info into vars.\n";
+echo "8. Read SSL info into vars.\n";
 $cert     = file_get_contents('/etc/letsencrypt/live/' . $domain . '/cert.pem');
 $privkey  = file_get_contents('/etc/letsencrypt/live/' . $domain . '/privkey.pem');
 $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem');
@@ -149,7 +171,7 @@ $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem')
 
 
 # Insert SSL info via API
-echo "6. Insert SSL info via API.\n";
+echo "9. Insert SSL info via API.\n";
 $client = new SoapClient(
     null,
     array(
