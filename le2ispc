@@ -127,7 +127,7 @@ if($domainInfo['redirect_type'] == "L") {
     $webroot .= $domainInfo['redirect_path'];
 }
 
-$command = "$letsencrypt --text --agree-tos --agree-dev-preview --renew-by-default --rsa-key-size 4096 --email '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
+$command = "$letsencrypt --text --agree-tos --renew-by-default --rsa-key-size 4096 --email '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
 
 if ($dry_run) {
     echo $command;
