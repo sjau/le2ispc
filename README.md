@@ -6,7 +6,8 @@ Script to generate Let's Encrypt certs and add them to ISPConfig via API
 1. Script currently only works with an ISPC install that has MySQL and Apache
 2. Currently no real SSL Certs can be created. Beta testing ends mid-november and then it should be publicly available
    so you can use this to test to process and that you can get ssl certs when it's publicly made available
-3. I haven't done all return checks etc. --> **expect bugs**
+3. **Probably not working on Master/Slave setups**
+4. I haven't done all return checks etc. --> **expect bugs**
 
 ## Installation
 
