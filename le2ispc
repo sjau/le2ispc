@@ -6,6 +6,8 @@ $letsencrypt = "/root/letsencrypt/letsencrypt-auto";
 
 # Provide the webserver you're using: apache or nginx
 $server["type"]         = "apache";
+$server["htaccess"]     = "y";          # Set y/n; "y" will rename a .htaccess in the webroot for the time of the certificate update.
+                                        # Some .htaccess cause otherwise the process to fail
 
 # Provide API Infos
 $server["username"]     = "user";
@@ -19,14 +21,19 @@ $email                  = "user@domain.tld";
 $forceSSL               = "y";
 
 
+
 /**************************************************************************************************************
 *                                                                                                             *
 *                                         HERE BE DRAGONS                                                     *
 *                                                                                                             *
 **************************************************************************************************************/
 
+
+
 # Include ISPConfig config file for DB connection
 require_once('/usr/local/ispconfig/server/lib/config.inc.php');
+
+
 
 # Check valid call
 $USAGE = "Usage: $argv[0] [-n|--dry-run] domain.tld [sub.domain.tld ...]\n";
@@ -35,6 +42,8 @@ if (count($argv) < 1) {
      echo $USAGE;
      exit(1);
 }
+
+
 
 # Get first arg
 $dry_run = false;
@@ -45,10 +54,14 @@ if($arg == '-n' || $arg == '--dry-run') {
     $arg = array_shift($argv);
 }
 
+
+
 # Get the domain
 echo "1. Get the domain name.\n";
 $domain = $arg;
 $subdomains = $argv;
+
+
 
 # Query the MySQL DB Directly whether $domain is a vhost
 echo "2. Query MySQL whether it's a vhost.\n";
@@ -67,6 +80,11 @@ if ($count != 1) {
 }
 $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $domainInfo = $row[0];
+# Set two vars that are required for Soap Connection
+$domain_id = $domainInfo['domain_id'];
+$server_id = $domainInfo['server_id'];
+
+
 
 # Check if ther's a 'www' subdomain set
 $www_subdomain = 'www.' . $domain;
@@ -76,10 +94,14 @@ if (in_array($domainInfo['subdomain'], array('www','*')) && !in_array($www_subdo
     $domains = "-d '$domain'";
 }
 
+
+
 # Add subdomains to domain list
 foreach ($subdomains as $subdomain) {
     $domains .= " -d '$subdomain'";
 }
+
+
 
 # Make sure webroot authentication works for both
 echo "3. Prepare Server for webroot authentication.\n";
@@ -100,22 +122,31 @@ if ( $server['type'] == 'apache' ) {
         shell_exec("a2enmod headers rewrite");
         shell_exec("a2enconf letsencrypt-webroot.conf");
         shell_exec("systemctl reload apache2");
+        sleep(5);
     }
 } elseif ($server['type'] == 'nginx' ) {
     if (strpos($domainInfo['nginx_directives'], '<LocationMatch "/.well-known/acme-challenge/*">') === false) {
         # No acme-challenge rule detected, so lets add it
-        $domainInfo['nginx_directives'] = '
+        $txt = '
             location ~ /.well-known/acme-challenge/(.*) {
                 default_type text/plain;
             }
-            '
-            . $domainInfo['nginx_directives'];
-            shell_exec("systemctl reload nginx");
+            ' . $domainInfo['nginx_directives'];
+        $client = newSoapConnection ($server);
+        $params = loadDomainData ($server, $client, $domain_id);
+        # Update params array with new directives
+        $params['nginx_directives'] = $txt;
+        # Store altered data in ISPC
+        saveDomainData ($server, $client, $server_id, $domain_id, $params);
+        closeSoapConnection ($server, $client);
+        # ISPC cron runs every minute, so sleep for 60 seconds.... annoying but only required if directives haven't been added yet for acme-challenge
+        sleep(60);
     }
 } else {
     echo "No valid server setting in the configuration. Please fix.";
     exit;
 }
+
 
 
 # Create ~/.well-known/acme-challenge folders and set correct permissions
@@ -126,10 +157,14 @@ chmod("$webroot/.well-known", 0777);
 chmod("$webroot/.well-known/acme-challenge", 0777);
 
 
+
 # Disable temporarily the .htaccess file in webroot
-echo "5. Disable temporarily the .htaccess file in webroot.\n";
-$curTime=time();
-rename("$webroot/.htaccess", "$webroot/.htaccess-$curTime-letsencrypt");
+    echo "5. Disable temporarily the .htaccess file in webroot (apache only).\n";
+if($server['type'] == 'apache' && $server["htaccess"] == 'y') {
+    $curTime=time();
+    @rename("$webroot/.htaccess", "$webroot/.htaccess-$curTime-letsencrypt");
+}
+
 
 
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
@@ -143,7 +178,9 @@ if ($dry_run) {
     echo $command;
     echo "\nNothing executed (dry-run)\n";
     # Restore .htaccess
-    rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
+    if($server['type'] == 'apache' && $server["htaccess"] == 'y') {
+        @rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
+    }
     exit;
 }
 $output = shell_exec($command);
@@ -152,14 +189,20 @@ if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
     # Restore .htacess
-    rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
+    if($server['type'] == 'apache' && $server["htaccess"] == 'y') {
+        @rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
+    }
     exit;
 }
 
 
+
 # Restore .htaccess again
-echo "7. Restore .htaccess again.\n";
-rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
+echo "7. Restore .htaccess again (apache only).\n";
+if($server['type'] == 'apache' && $server["htaccess"] == 'y') {
+    @rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
+}
+
 
 
 # Read the SSL info into vars
@@ -172,119 +215,67 @@ $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem')
 
 # Insert SSL info via API
 echo "9. Insert SSL info via API.\n";
-$client = new SoapClient(
-    null,
-    array(
-        'location' => $server['soap_uri'] . 'index.php',
-        'uri'      => $server['soap_uri'],
-        'trace' => 1,
-        'stream_context'=> stream_context_create(
+$client = newSoapConnection ($server);
+$params = loadDomainData ($server, $client, $domain_id);
+# Update params array with new directives
+$params['ssl']          = 'y';
+$params['ssl_domain']   = $domain;
+$params['ssl_key']      = $privkey;
+$params['ssl_cert']     = $cert;
+$params['ssl_bundle']   = $bundle;
+$params['ssl_action']   = 'save';
+# Store altered data in ISPC
+saveDomainData ($server, $client, $server_id, $domain_id, $params);
+closeSoapConnection ($server, $client);
+echo "Done.\n";
+
+
+
+
+
+
+# Functions for making Soap Connection, fetching and storing domain data
+function newSoapConnection ($server) {
+    $client = new SoapClient(
+        null,
         array(
-            'ssl'=> array(
-                'verify_peer'=>false,
-                'verify_peer_name'=>false
+            'location' => $server['soap_uri'] . 'index.php',
+            'uri'      => $server['soap_uri'],
+            'trace' => 1,
+            'stream_context'=> stream_context_create(
+            array(
+                'ssl'=> array(
+                    'verify_peer'=>false,
+                    'verify_peer_name'=>false
+                )
             )
+        ),
+        'exceptions' => 1
         )
-    ),
-    'exceptions' => 1
-    )
-);
-try {
-    $session_id = $client->login($server['username'], $server['password']);
-
-    # Check if Apache should force SSL
-    if ( $server['type'] == 'apache' && $forceSSL == 'y' ) {
-        # Check if the apache directives already contain forced rewrite
-        if (strpos($domainInfo['apache_directives'], 'RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}') === false) {
-            # No rewrite rules detected, so lets add it
-            $domainInfo['apache_directives'] = "
-                RewriteEngine On
-                RewriteCond %{HTTPS} off
-                RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-                "
-                . $domainInfo['apache_directives'];
-        }
-    } elseif ( $server['type'] == 'nginx' && $forceSSL == 'y' ) {
-        if (strpos($domainInfo['nginx_directives'], 'if ($scheme = http) {') === false) {
-            # No rewrite rules detected, so lets add it
-            $domainInfo['nginx_directives'] = '
-                if ($scheme = http) {
-                    return 301 https://$server_name$request_uri;
-                }
-                '
-                . $domainInfo['nginx_directives'];
-        }
-    }
-
-    # Parameters
-    $params = array(    'server_id'             => $domainInfo['server_id'],
-                        'ip_address'            => $domainInfo['ip_address'],
-                        'ipv6_address'          => $domainInfo['ipv6_address'],
-                        'domain'                => $domainInfo['domain'],
-                        'type'                  => $domainInfo['type'],
-                        'parent_domain_id'      => $domainInfo['parent_domain_id'],
-                        'vhost_type'            => $domainInfo['vhost_type'],
-                        'hd_quota'              => $domainInfo['hd_quota'],
-                        'traffic_quota'         => $domainInfo['traffic_quota'],
-                        'cgi'                   => $domainInfo['cgi'],
-                        'ssi'                   => $domainInfo['ssi'],
-                        'suexec'                => $domainInfo['suexec'],
-                        'errordocs'             => $domainInfo['errordocs'],
-                        'subdomain'             => $domainInfo['subdomain'],
-                        'ssl'                   => 'y',
-                        'php'                   => $domainInfo['php'],
-                        'fastcgi_php_version'   => $domainInfo['fastcgi_php_version'],
-                        'perl'                  => $domainInfo['perl'],
-                        'ruby'                  => $domainInfo['ruby'],
-                        'python'                => $domainInfo['python'],
-                        'active'                => $domainInfo['active'],
-                        'redirect_type'         => $domainInfo['redirect_type'],
-                        'redirect_path'         => $domainInfo['redirect_path'],
-                        'seo_redirect'          => $domainInfo['seo_redirect'],
-                        'rewrite_rules'         => $domainInfo['rewrite_rules'],
-                        'ssl_state'             => $domainInfo['ssl_state'],
-                        'ssl_locality'          => $domainInfo['ssl_locality'],
-                        'ssl_organisation'      => $domainInfo['ssl_organisation'],
-                        'ssl_organisation_unit' => $domainInfo['ssl_organisation_unit'],
-                        'ssl_country'           => $domainInfo['ssl_country'],
-                        'ssl_domain'            => $domain,
-                        'ssl_key'               => $privkey,
-                        'ssl_request'           => $domainInfo['ssl_request'],
-                        'ssl_cert'              => $cert,
-                        'ssl_bundle'            => $bundle,
-                        'ssl_action'            => 'save',
-                        'stats_password'        => $domainInfo['stats_password'],
-                        'stats_type'            => $domainInfo['stats_type'],
-                        'backup_interval'       => $domainInfo['backup_interval'],
-                        'backup_copies'         => $domainInfo['backup_copies'],
-                        'backup_excludes'       => $domainInfo['backup_excludes'],
-                        'document_root'         => $domainInfo['document_root'],
-                        'system_user'           => $domainInfo['system_user'],
-                        'system_group'          => $domainInfo['system_group'],
-                        'allow_override'        => $domainInfo['allow_override'],
-                        'php_fpm_use_socket'    => $domainInfo['php_fpm_use_socket'],
-                        'pm'                    => $domainInfo['pm'],
-                        'pm_max_children'       => $domainInfo['pm_max_children'],
-                        'pm_start_servers'      => $domainInfo['pm_start_servers'],
-                        'pm_min_spare_servers'  => $domainInfo['pm_min_spare_servers'],
-                        'pm_max_spare_servers'  => $domainInfo['pm_max_spare_servers'],
-                        'pm_process_idle_timeout' => $domainInfo['pm_process_idle_timeout'],
-                        'pm_max_requests'       => $domainInfo['pm_max_requests'],
-                        'php_open_basedir'      => $domainInfo['php_open_basedir'],
-                        'custom_php_ini'        => $domainInfo['custom_php_ini'],
-                        'apache_directives'     => $domainInfo['apache_directives'],
-                        'nginx_directives'      => $domainInfo['nginx_directives'],
-                        'proxy_directives'      => $domainInfo['proxy_directives'],
-                        'added_date'            => $domainInfo['added_date'],
-                        'added_by'              => $domainInfo['added_by']
     );
-    $client->sites_web_domain_update($session_id, $domainInfo['server_id'], $domainInfo['domain_id'], $params);
-    $client->logout($session_id);
-    echo "Added SSL Certs to '$domain'\n";
-} catch (SoapFault $e) {
-    echo $client->__getLastResponse();
-    die('SOAP Error: '.$e->getMessage());
+    return($client);
 }
 
+
+
+function loadDomainData ($server, $client, $domain_id) {
+    $session_id = $client->login($server['username'], $server['password']);
+    $params = $client->sites_web_domain_get($session_id, $domain_id);
+    return($params);
+}
+
+
+
+function saveDomainData ($server, $client, $server_id, $domain_id, $params) {
+    $session_id = $client->login($server['username'], $server['password']);
+    $client->sites_web_domain_update($session_id, $server_id, $domain_id, $params);
+}
+
+
+
+function closeSoapConnection ($server, $client) {
+    $session_id = $client->login($server['username'], $server['password']);
+    $client->logout($session_id);
+}
 
 ?>
