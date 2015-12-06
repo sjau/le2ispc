@@ -224,6 +224,29 @@ $params['ssl_key']      = $privkey;
 $params['ssl_cert']     = $cert;
 $params['ssl_bundle']   = $bundle;
 $params['ssl_action']   = 'save';
+# Forced ssl redirect
+if ( $server['type'] == 'apache' && $forceSSL == 'y' ) {
+    # Check if the apache directives already contain forced rewrite
+    if (strpos($params['apache_directives'], 'RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}') === false) {
+        # No rewrite rules detected, so lets add it
+        $params['apache_directives'] = "
+            RewriteEngine On
+            RewriteCond %{HTTPS} off
+            RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+            "
+            . $params['apache_directives'];
+    }
+} elseif ( $server['type'] == 'nginx' && $forceSSL == 'y' ) {
+    if (strpos($params['nginx_directives'], 'if ($scheme = http) {') === false) {
+        # No rewrite rules detected, so lets add it
+        $params['nginx_directives'] = '
+            if ($scheme = http) {
+                return 301 https://$server_name$request_uri;
+            }
+            '
+            . $params['nginx_directives'];
+    }
+}
 # Store altered data in ISPC
 saveDomainData ($server, $client, $server_id, $domain_id, $params);
 closeSoapConnection ($server, $client);
