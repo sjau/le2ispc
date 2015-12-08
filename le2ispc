@@ -71,7 +71,7 @@ try {
 catch (PDOException $e) {
     echo "There was an unexpected error. Couldn't connect to the DB.";
 }
-$stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `domain` LIKE ? AND `type` LIKE 'vhost'");
+$stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `domain` LIKE ? AND `type` LIKE 'vhost%'");
 $stmt->execute(array($domain));
 $count = $stmt->rowCount();
 if ($count != 1) {
@@ -151,7 +151,7 @@ if ( $server['type'] == 'apache' ) {
 
 # Create ~/.well-known/acme-challenge folders and set correct permissions
 echo "4. Create folder in web root for acme-challenge\n";
-$webroot = $domainInfo['document_root'] . "/web";
+$webroot = $domainInfo['document_root'] . ($domainInfo['web_folder']!=''?"/".$domainInfo['web_folder']:"/web");
 @mkdir("$webroot/.well-known/acme-challenge", 0777, true);
 chmod("$webroot/.well-known", 0777);
 chmod("$webroot/.well-known/acme-challenge", 0777);
@@ -282,16 +282,28 @@ function newSoapConnection ($server) {
 
 
 function loadDomainData ($server, $client, $domain_id) {
+  global $domainInfo;
     $session_id = $client->login($server['username'], $server['password']);
-    $params = $client->sites_web_domain_get($session_id, $domain_id);
+    if ($domainInfo['type']=='vhost') {
+      $params = $client->sites_web_domain_get($session_id, $domain_id);
+    }
+    elseif($domainInfo['type']=='vhostsubdomain') {
+      $params = $client->sites_web_subdomain_get($session_id, $domain_id);
+    }
     return($params);
 }
 
 
 
 function saveDomainData ($server, $client, $server_id, $domain_id, $params) {
+  global $domainInfo;
     $session_id = $client->login($server['username'], $server['password']);
-    $client->sites_web_domain_update($session_id, $server_id, $domain_id, $params);
+    if ($domainInfo['type']=='vhost') {
+      $params = $client->sites_web_domain_update($session_id, $server_id, $domain_id, $params);
+    }
+    elseif($domainInfo['type']=='vhostsubdomain') {
+      $params = $client->sites_web_vhost_subdomain_update($session_id, $server_id, $domain_id, $params);
+    }
 }
 
 
