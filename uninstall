@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+mode="${1}"
+
+confDir="/root/.le2ispc"
+
+removeSymlink () {
+    if [[ -f "/usr/local/le2ispc" ]]; then
+        rm "/usr/local/le2ispc"
+    fi
+}
+
+removeAll () {
+    removeSymlink
+    if [[ -d "${confDir}" ]]; then
+        rm -Rf "${confDir}"
+    fi
+}
+
+
+case "${mode}" in
+    "all")      echo "Removing symlink and config file"
+                removeAll;
+                echo "Removal done"
+                ;;
+    "symlink")  echo "Removing symlink"
+                removeSymlink;
+                echo "Removal done"
+                ;;
+    *)          echo "Usage: ./uninstall all|symlink"
+                echo "    'all' will remove the symlink and the config file"
+                echo "    'symlink' will only remove the symlink in '${confDir}'"
+                echo "The files in here won't be removed and must be manually removed."
+                ;;
+esac

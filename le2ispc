@@ -1,32 +1,24 @@
 #!/usr/bin/env php
 <?php
 
-# Provide path to the letsencrypt script
-$letsencrypt = "/root/letsencrypt/letsencrypt-auto";
-
-# Provide the webserver you're using: apache or nginx
-$server["type"]         = "apache";
-$server["htaccess"]     = "y";          # Set y/n; "y" will rename a .htaccess in the webroot for the time of the certificate update.
-                                        # Some .htaccess cause otherwise the process to fail
-
-# Provide API Infos
-$server["username"]     = "user";
-$server["password"]     = "password";
-$server["soap_uri"]     = "https://ispc.domain.tld:8080/remote/";
-
-# Give email for cert creation
-$email                  = "user@domain.tld";
-
-# Force Apache/Nginx to rewrite non-ssl to ssl
-$forceSSL               = "y";
-
-
-
 /**************************************************************************************************************
 *                                                                                                             *
 *                                         HERE BE DRAGONS                                                     *
 *                                                                                                             *
 **************************************************************************************************************/
+
+$confVersion  = "2015-12-09-1";
+
+
+# Include the le2ispc config
+require_once('/root/.le2ispc/le2ispc.conf.php');
+# Check if the versions are identical
+if ( $version != $confVersion ) {
+    echo "The config file was altered.
+Please update your config file at /root/.le2ispc/le2ispc.conf.php
+to the current version located at https://github.com/sjau/le2ispc/blob/master/le2ispc.conf.php";
+    exit;
+}
 
 
 
@@ -71,7 +63,7 @@ try {
 catch (PDOException $e) {
     echo "There was an unexpected error. Couldn't connect to the DB.";
 }
-$stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `domain` LIKE ? AND `type` LIKE 'vhost'");
+$stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `domain` LIKE ? AND `type` LIKE 'vhost%'");
 $stmt->execute(array($domain));
 $count = $stmt->rowCount();
 if ($count != 1) {
@@ -151,7 +143,7 @@ if ( $server['type'] == 'apache' ) {
 
 # Create ~/.well-known/acme-challenge folders and set correct permissions
 echo "4. Create folder in web root for acme-challenge\n";
-$webroot = $domainInfo['document_root'] . "/web";
+$webroot = $domainInfo['document_root'] . ($domainInfo['web_folder']!=''?"/".$domainInfo['web_folder']:"/web");
 @mkdir("$webroot/.well-known/acme-challenge", 0777, true);
 chmod("$webroot/.well-known", 0777);
 chmod("$webroot/.well-known/acme-challenge", 0777);
@@ -282,16 +274,28 @@ function newSoapConnection ($server) {
 
 
 function loadDomainData ($server, $client, $domain_id) {
+  global $domainInfo;
     $session_id = $client->login($server['username'], $server['password']);
-    $params = $client->sites_web_domain_get($session_id, $domain_id);
+    if ($domainInfo['type']=='vhost') {
+      $params = $client->sites_web_domain_get($session_id, $domain_id);
+    }
+    elseif($domainInfo['type']=='vhostsubdomain') {
+      $params = $client->sites_web_subdomain_get($session_id, $domain_id);
+    }
     return($params);
 }
 
 
 
 function saveDomainData ($server, $client, $server_id, $domain_id, $params) {
+  global $domainInfo;
     $session_id = $client->login($server['username'], $server['password']);
-    $client->sites_web_domain_update($session_id, $server_id, $domain_id, $params);
+    if ($domainInfo['type']=='vhost') {
+      $params = $client->sites_web_domain_update($session_id, $server_id, $domain_id, $params);
+    }
+    elseif($domainInfo['type']=='vhostsubdomain') {
+      $params = $client->sites_web_vhost_subdomain_update($session_id, $server_id, $domain_id, $params);
+    }
 }
 
 

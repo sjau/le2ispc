@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+confDir="/root/.le2ispc"
+
+# Check if config file exists
+if [[ ! -f "${confDir}/le2ispc.conf.php" ]]; then
+    # File does not exist, check if conf dir exists
+    if [[ ! -d "${confDir}" ]]; then
+        # Create conf dir
+        mkdir "${confDir}"
+    fi
+    # Copy default conf file to conf dir
+    cp "le2ispc.conf.php" "${confDir}/"
+fi
+
+# Create symlink in /usr/local/bin"
+# Get current path
+curPath=$(pwd)
+# Move to /usr/local/bin
+cd "/usr/local/bin"
+if [[ ! $? -eq 0 ]]; then
+    echo "Couldn't change path to /usr/local/bin"
+    exit;
+fi
+# Make symlink
+ln -s "${curPath}/le2ispc" "le2ispc"
+
+# Finish
+echo "Installation successful."
+echo "Please edit the config file at /root/.le2ispc/le2ispc.conf.php before running le2ispc"
