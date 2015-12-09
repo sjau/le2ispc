@@ -7,7 +7,7 @@
 *                                                                                                             *
 **************************************************************************************************************/
 
-$confVersion  = "2015-12-09-1";
+$confVersion  = "2015-12-09-2";
 
 
 # Include the le2ispc config
@@ -99,21 +99,37 @@ foreach ($subdomains as $subdomain) {
 echo "3. Prepare Server for webroot authentication.\n";
 # https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
 if ( $server['type'] == 'apache' ) {
-    $confFile='/etc/apache2/conf-available/letsencrypt-webroot.conf';
+    # Create dirs for challenge
+    @mkdir("/var/www/.well-known/acme-challenge", 0777, true);
+    @chmod("/var/www/.well-known", 0777);
+    @chmod("/var/www/.well-known/acme-challenge", 0777);
+    if ( $server['version'] == '2.4' ) {
+        $confFile='/etc/apache2/conf-available/letsencrypt-webroot.conf';
+    } elseif ( $server['version'] == '2.2' ) {
+        $confFile='/etc/apache2/conf.d/letsencrypt-webroot.conf';
+    } else {
+        echo "You did not supply the apache version you're using. Please check /root/.le2ispc/le2ispc.conf.php and retry.";
+        exit;
+    }
+    # Check if we already added apache conf
     if ( ! file_exists($confFile) ) {
         $file = fopen($confFile, "w") or die("Unable to open file!");
         $txt = '
-            <IfModule mod_headers.c>
-                <LocationMatch "/.well-known/acme-challenge/*">
-                    Header set Content-Type "text/plain"
-                </LocationMatch>
-            </IfModule>
+            RewriteEngine On
+            Alias /.well-known /var/www/.well-known
+            <Directory /var/www/.well-known>
+                Options +FollowSymLinks
+                AllowOverride All
+                Require all granted
+            </Directory>
         ';
         fwrite($file, $txt);
         fclose($file);
-        shell_exec("a2enmod headers rewrite");
-        shell_exec("a2enconf letsencrypt-webroot.conf");
-        shell_exec("systemctl reload apache2");
+        # Restart apache & load modules
+        @shell_exec("a2enmod rewrite");
+        @shell_exec("a2enconf letsencrypt-webroot.conf");
+        @shell_exec("systemctl reload apache2");
+        @shell_exec("service apache2 reload");
         sleep(5);
     }
 } elseif ($server['type'] == 'nginx' ) {
@@ -141,38 +157,13 @@ if ( $server['type'] == 'apache' ) {
 
 
 
-# Create ~/.well-known/acme-challenge folders and set correct permissions
-echo "4. Create folder in web root for acme-challenge\n";
-$webroot = $domainInfo['document_root'] . ($domainInfo['web_folder']!=''?"/".$domainInfo['web_folder']:"/web");
-@mkdir("$webroot/.well-known/acme-challenge", 0777, true);
-chmod("$webroot/.well-known", 0777);
-chmod("$webroot/.well-known/acme-challenge", 0777);
-
-
-
-# Disable temporarily the .htaccess file in webroot
-    echo "5. Disable temporarily the .htaccess file in webroot (apache only).\n";
-if($server['type'] == 'apache' && $server["htaccess"] == 'y') {
-    $curTime=time();
-    @rename("$webroot/.htaccess", "$webroot/.htaccess-$curTime-letsencrypt");
-}
-
-
-
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
-echo "6. Run Let's Encrypt Tool\n";
-if($domainInfo['redirect_type'] == "L") {
-    $webroot .= $domainInfo['redirect_path'];
-}
-
+echo "4. Run Let's Encrypt Tool\n";
+$webroot = "/var/www/";
 $command = "$letsencrypt --text --agree-tos --renew-by-default --rsa-key-size 4096 --email '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
 if ($dry_run) {
     echo $command;
     echo "\nNothing executed (dry-run)\n";
-    # Restore .htaccess
-    if($server['type'] == 'apache' && $server["htaccess"] == 'y') {
-        @rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
-    }
     exit;
 }
 $output = shell_exec($command);
@@ -180,25 +171,13 @@ $output = shell_exec($command);
 if (strpos($output, 'Congratulations') === false) {
     echo "Sorry, there was some error. Please check:\n";
     echo $output;
-    # Restore .htacess
-    if($server['type'] == 'apache' && $server["htaccess"] == 'y') {
-        @rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
-    }
     exit;
 }
 
 
 
-# Restore .htaccess again
-echo "7. Restore .htaccess again (apache only).\n";
-if($server['type'] == 'apache' && $server["htaccess"] == 'y') {
-    @rename("$webroot/.htaccess-$curTime-letsencrypt", "$webroot/.htaccess");
-}
-
-
-
 # Read the SSL info into vars
-echo "8. Read SSL info into vars.\n";
+echo "5. Read SSL info into vars.\n";
 $cert     = file_get_contents('/etc/letsencrypt/live/' . $domain . '/cert.pem');
 $privkey  = file_get_contents('/etc/letsencrypt/live/' . $domain . '/privkey.pem');
 $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem');
@@ -206,7 +185,7 @@ $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem')
 
 
 # Insert SSL info via API
-echo "9. Insert SSL info via API.\n";
+echo "6. Insert SSL info via API.\n";
 $client = newSoapConnection ($server);
 $params = loadDomainData ($server, $client, $domain_id);
 # Update params array with new directives
