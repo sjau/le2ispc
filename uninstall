@@ -5,22 +5,20 @@ mode="${1}"
 confDir="/root/.le2ispc"
 
 removeApache ()  {
-    shell_exec("a2disconf letsencrypt-webroot.conf");
+    a2disconf "letsencrypt-webroot.conf"
     if [[ -d "/etc/apache2/conf-available/letsencrypt-webroot.conf" ]]; then
         rm "/etc/apache2/conf-available/letsencrypt-webroot.conf"
     fi
-    shell_exec("systemctl reload apache2");
+    systemctl reload apache2
 }
 
 removeSymlink () {
-    removeApache
     if [[ -f "/usr/local/bin/le2ispc" ]]; then
         rm "/usr/local/bin/le2ispc"
     fi
 }
 
 removeAll () {
-    removeApache
     removeSymlink
     if [[ -d "${confDir}" ]]; then
         rm -Rf "${confDir}"
@@ -30,11 +28,13 @@ removeAll () {
 
 case "${mode}" in
     "all")      echo "Removing symlink and config file"
+                removeApache
                 removeAll;
                 echo "Removal done"
                 ;;
     "symlink")  echo "Removing symlink"
-                removeSymlink;
+                removeApache
+                removeSymlink
                 echo "Removal done"
                 ;;
     *)          echo "Usage: ./uninstall all|symlink"
