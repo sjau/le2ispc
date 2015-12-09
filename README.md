@@ -11,12 +11,12 @@ Script to generate Let's Encrypt certs and add them to ISPConfig via API
 
 ## Installation
 
-1. Get Let's Encrypt - follow instructions here: https://letsencrypt.readthedocs.org/en/latest/using.html
-2. Get the le2ispc script (just single script or clone whole repository)
-3. Make the le2ispc script executable
-4. Optionally: You can copy it to a directory in $$PATH, e.g. /usr/bin
-5. In ISPC add a remote user that can at least access the "Site Domain Functions"
-6. Edit the header section of the le2ispc script - it's important to give a valid email address
+1. In ISPC add a remote user that can at least access the "Site Domain Functions"
+2. Get Let's Encrypt - follow instructions here: https://letsencrypt.readthedocs.org/en/latest/using.html
+3. Get the le2ispc script (just single script or clone whole repository)
+4. Make the le2ispc script executable
+5. Run the install script:  ./install
+6. Edit the conf script in /root/.le2ispc/le2ispc.conf.php - it's important to give a valid email address
 7. Run at least once the letsencrypt-auto script with the *auth* parameter: cd letsencrypt; ./letsencrypt-auto auth
 
 ## Run
