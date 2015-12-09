@@ -108,7 +108,7 @@ echo "3. Prepare Server for webroot authentication.\n";
 # https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
 if ( $server['type'] == 'apache' ) {
     $confFile='/etc/apache2/conf-available/letsencrypt-webroot.conf';
-    if ( ! file_exists($confFile) ) {
+    if ( ! file_exists($confFile) && is_dir('/etc/apache2/conf-available/') ) {
         $file = fopen($confFile, "w") or die("Unable to open file!");
         $txt = '
             <IfModule mod_headers.c>
