@@ -3,8 +3,8 @@
 # Provide path to the letsencrypt script
 $letsencrypt = "/root/letsencrypt/letsencrypt-auto";
 
-# Provide the webserver you're using: apache or nginx
-$server["type"]         = "apache";
+$server["type"]         = "apache";     # Provide the webserver you're using: apache or nginx
+$server["version"]      = "2.4";        # If using apache, provide the version: 2.2 or 2.4
 $server["htaccess"]     = "y";          # Set y/n; "y" will rename a .htaccess in the webroot for the time of the certificate update.
                                         # Some .htaccess cause otherwise the process to fail
 
@@ -29,7 +29,7 @@ $forceSSL               = "y";
 
 
 
-$version                = "2015-12-06-1";
+$version                = "2015-12-06-2";
 
 
 ?>
