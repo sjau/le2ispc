@@ -49,7 +49,7 @@ if($arg == '-n' || $arg == '--dry-run') {
 
 
 # Get the domain
-echo "1. Get the domain name.\n";
+echo "1. Get the domain name(s): $arg $argv.\n";
 $domain = $arg;
 $subdomains = $argv;
 

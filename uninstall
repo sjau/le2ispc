@@ -16,6 +16,9 @@ removeSymlink () {
     if [[ -f "/usr/local/bin/le2ispc" ]]; then
         rm "/usr/local/bin/le2ispc"
     fi
+    if [[ -f "/usr/local/bin/le2ispc_renewer" ]]; then
+        rm "/usr/local/bin/le2ispc_renewer"
+    fi
 }
 
 removeAll () {

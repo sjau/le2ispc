@@ -24,6 +24,7 @@ if [[ ! $? -eq 0 ]]; then
 fi
 # Make symlink
 ln -s "${curPath}/le2ispc" "le2ispc"
+ln -s "${curPath}/le2ispc_renewer" "le2ispc_renewer"
 
 # Finish
 echo "Installation successful."

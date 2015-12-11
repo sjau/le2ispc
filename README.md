@@ -28,3 +28,9 @@ If not, then go to the place where you have the le2ispc script and run: ```./le2
 You can optionally append any number of subdomains to be used as alternate names in your certificate, e.g.: ```le2ispc domain.tld sub1.domain.tld sub2.domain.tld```.
 
 To avoid running into a rate limit ("There were too many requests of a given type :: Error creating new cert :: Too many certificates already issued for domain.tld"), you can execute a dry-run with the -n or --dry-run option: ```le2ispc -n domain.tld sub1.domain.tld sub2.domain.tld```. This will only print the letsencrypt command without executing it.
+
+## Renewal
+
+1. Edit the ''le2ispc_renewer'' script in the git folder.
+2. Set the number of days after which the renewer script should retry to get new certs.
+3. Make a cron entry to run the script regularly.

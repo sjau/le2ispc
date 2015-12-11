@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+
+
+days="60"              # Set the number of days after which new certs should be requested
+
+
+
+#*************************************************************************************************************#
+#                                                                                                             #
+#                                         HERE BE DRAGONS                                                     #
+#                                                                                                             #
+#*************************************************************************************************************#
+
+
+
+# Find all dirs older than the limit
+#find /etc/letsencrypt/live -type d -mtime +"${days}" -exec bash -c 'domain=${1##*/}; echo "${domain}"' _ {} \;
+
+#find /etc/letsencrypt/live -type d -mtime +"60" -exec bash -c 'domain=${1##*/}; echo "${domain}"' _ {} \;
+
+
+
+while getopts ":thd:" opt; do
+  case $opt in
+    d)  days="${OPTARG}"
+        ;;
+    t)  testrun="yes"
+        ;;
+    h)  echo "Usage: ${0} [-h|-d DAYS|-t]"
+        echo "-h: print help"
+        echo "-d: DAYS: Use this switch to specifiy a different renewal interval (only for one run)"
+        echo "-t: make dry-run, print the domains that would be renewed"
+        ;;
+    \?) echo "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;
+    :)  echo "Option -$OPTARG requires an argument (number of days)." >&2
+        exit 1
+        ;;
+  esac
+done
+
+if [[ "${testrun}" = "yes" ]]; then
+    echo "The following domains would have been renewed since ${days} days have passed."
+    find "/etc/letsencrypt/live" -type d -mtime +"${days}" -exec bash -c 'domain=${1##*/}; echo "${domain}"' _ {} \;
+else
+    find /etc/letsencrypt/live -type d -mtime +"${days}" -exec bash -c 'domain=${1##*/}; le2ispc "${domain}"' _ {} \;
+fi
