@@ -31,7 +31,7 @@ To avoid running into a rate limit ("There were too many requests of a given typ
 
 ## Renewal
 
-1. Edit the ''le2ispc_renewer'' script in the git folder.
+1. Edit the ```le2ispc_renewer``` script in the git folder.
 2. Set the number of days after which the renewer script should retry to get new certs.
 3. Make a cron entry to run the script regularly.
 
@@ -39,4 +39,15 @@ To avoid running into a rate limit ("There were too many requests of a given typ
 On my test run on 4 domains there was an error with updating the cert in ISPC through the api.
 However the cert was successfully retrieved from the Let's Encrypt servers.
 So the last modified date in ''/etc/letsencrypt/live'' was also updated.
-The result would be that the renewer script will not re-process that domain for xx days.
+The result would be that the renewer script will not re-process that domain for xx days -->
+
+```
+PHP Fatal error:  Uncaught SoapFault exception: [HTTP] Error Fetching http headers in /usr/bin/le2ispc:261
+Stack trace:
+#0 [internal function]: SoapClient->__doRequest('<?xml version="...', 'https://manager...', 'https://manager...', 1, 0)
+#1 /usr/bin/le2ispc(261): SoapClient->__call('login', Array)
+#2 /usr/bin/le2ispc(261): SoapClient->login('...', '...')
+#3 /usr/bin/le2ispc(218): loadDomainData(Array, Object(SoapClient), '5')
+#4 {main}
+  thrown in /usr/bin/le2ispc on line 261
+```
