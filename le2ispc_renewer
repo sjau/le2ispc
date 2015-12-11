@@ -2,7 +2,7 @@
 
 
 
-days="60"              # Set the number of days after which new certs should be requested
+days="30"              # Set the number of days after which new certs should be requested
 
 
 
