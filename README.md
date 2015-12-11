@@ -34,3 +34,9 @@ To avoid running into a rate limit ("There were too many requests of a given typ
 1. Edit the ''le2ispc_renewer'' script in the git folder.
 2. Set the number of days after which the renewer script should retry to get new certs.
 3. Make a cron entry to run the script regularly.
+
+**Problem:** 
+On my test run on 4 domains there was an error with updating the cert in ISPC through the api.
+However the cert was successfully retrieved from the Let's Encrypt servers.
+So the last modified date in ''/etc/letsencrypt/live'' was also updated.
+The result would be that the renewer script will not re-process that domain for xx days.
