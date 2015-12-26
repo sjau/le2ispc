@@ -11,7 +11,7 @@ $server["htaccess"]     = "y";          # Set y/n; "y" will rename a .htaccess i
 # Provide API Infos
 $server["username"]     = "user";
 $server["password"]     = "password";
-$server["soap_uri"]     = "https://ispc.domain.tld:8080/remote/";
+$server["soap_uri"]     = "https://localhost:8080/remote/";
 
 # Give email for cert creation
 $email                  = "user@domain.tld";
