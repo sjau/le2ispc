@@ -49,14 +49,14 @@ if($arg == '-n' || $arg == '--dry-run') {
 
 
 # Get the domain
-echo "1. Get the domain name(s): $arg $argv.\n";
+echo "- Get the domain name(s): $arg $argv.\n";
 $domain = $arg;
 $subdomains = $argv;
 
 
 
 # Query the MySQL DB Directly whether $domain is a vhost
-echo "2. Query MySQL whether it's a vhost.\n";
+echo "- Query MySQL whether it's a vhost.\n";
 try {
     $db = new PDO('mysql:host=' . $conf['db_host'] . ';dbname=' . $conf['db_database'], $conf['db_user'], $conf['db_password']);
 }
@@ -96,7 +96,7 @@ foreach ($subdomains as $subdomain) {
 
 
 # Make sure webroot authentication works for both
-echo "3. Prepare Server for webroot authentication.\n";
+echo "- Prepare Server for webroot authentication.\n";
 # https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
 if ( $server['type'] == 'apache' ) {
     # Create dirs for challenge
@@ -126,7 +126,7 @@ if ( $server['type'] == 'apache' ) {
                 Allow from all
             </Directory>
         ';
-        
+
     } else {
         echo "You did not supply the apache version you're using. Please check /root/.le2ispc/le2ispc.conf.php and retry.";
         exit;
@@ -168,8 +168,19 @@ if ( $server['type'] == 'apache' ) {
 
 
 
+# Disable Webserver Modules while Let's Encrypt is running
+if( $server['type'] == 'apache' && $server["modules"] != "") {
+    $modules = explode($server["modules"]);
+    foreach ($modules as $module) {
+        @shell_exec("a2dismod $module");
+    }
+    @shell_exec("service apache2 reload");
+}
+
+
+
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
-echo "4. Run Let's Encrypt Tool\n";
+echo "- Run Let's Encrypt Tool\n";
 $webroot = "/var/www/";
 $command = "$letsencrypt --text --agree-tos --renew-by-default --rsa-key-size 4096 --email '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
 if ($dry_run) {
@@ -187,8 +198,19 @@ if (strpos($output, 'Congratulations') === false) {
 
 
 
+# Re-enable the disabled modules
+if( $server['type'] == 'apache' && $server["modules"] != "") {
+    $modules = explode($server["modules"]);
+    foreach ($modules as $module) {
+        @shell_exec("a2enmod $module");
+    }
+    @shell_exec("service apache2 reload");
+}
+
+
+
 # Read the SSL info into vars
-echo "5. Read SSL info into vars.\n";
+echo "- Read SSL info into vars.\n";
 $cert     = file_get_contents('/etc/letsencrypt/live/' . $domain . '/cert.pem');
 $privkey  = file_get_contents('/etc/letsencrypt/live/' . $domain . '/privkey.pem');
 $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem');
@@ -196,7 +218,7 @@ $bundle   = file_get_contents('/etc/letsencrypt/live/' . $domain . '/chain.pem')
 
 
 # Insert SSL info via API
-echo "6. Insert SSL info via API.\n";
+echo "- Insert SSL info via API.\n";
 $client = newSoapConnection ($server);
 $params = loadDomainData ($server, $client, $domain_id);
 # Update params array with new directives
