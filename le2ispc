@@ -170,7 +170,7 @@ if ( $server['type'] == 'apache' ) {
 
 # Disable Webserver Modules while Let's Encrypt is running
 if( $server['type'] == 'apache' && $server["modules"] != "") {
-    $modules = explode($server["modules"]);
+    $modules = explode(',',$server["modules"]);
     foreach ($modules as $module) {
         @shell_exec("a2dismod $module");
     }
@@ -200,7 +200,7 @@ if (strpos($output, 'Congratulations') === false) {
 
 # Re-enable the disabled modules
 if( $server['type'] == 'apache' && $server["modules"] != "") {
-    $modules = explode($server["modules"]);
+    $modules = explode(',',$server["modules"]);
     foreach ($modules as $module) {
         @shell_exec("a2enmod $module");
     }
