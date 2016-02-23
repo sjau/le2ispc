@@ -100,14 +100,14 @@ echo "- Prepare Server for webroot authentication.\n";
 # https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
 if ( $server['type'] == 'apache' ) {
     # Create dirs for challenge
-    @mkdir("/var/www/.well-known/acme-challenge", 0777, true);
-    @chmod("/var/www/.well-known", 0777);
-    @chmod("/var/www/.well-known/acme-challenge", 0777);
+    @mkdir($server["webroot"] . "/.well-known/acme-challenge", 0777, true);
+    @chmod($server["webroot"] . "/.well-known", 0777);
+    @chmod($server["webroot"] . "/.well-known/acme-challenge", 0777);
     if ( $server['version'] == '2.4' ) {
         $confFile='/etc/apache2/conf-available/letsencrypt-webroot.conf';
         $txt = '
             RewriteEngine On
-            Alias /.well-known /var/www/.well-known
+            Alias /.well-known ' . $server["webroot"] . '/.well-known
             <Directory /var/www/.well-known>
                 Options +FollowSymLinks
                 AllowOverride All
@@ -118,7 +118,7 @@ if ( $server['type'] == 'apache' ) {
         $confFile='/etc/apache2/conf.d/letsencrypt-webroot.conf';
         $txt = '
             RewriteEngine On
-            Alias /.well-known /var/www/.well-known
+            Alias /.well-known ' . $server["webroot"] . '/.well-known
             <Directory /var/www/.well-known>
                 Options +FollowSymLinks
                 AllowOverride All
