@@ -14,9 +14,10 @@ $confVersion  = "2016-01-14-1";
 require_once('/root/.le2ispc/le2ispc.conf.php');
 # Check if the versions are identical
 if ( $version != $confVersion ) {
-    echo "The config file was altered.
+    echo "\nThe config file was altered ($version <-> $conVersion)
 Please update your config file at /root/.le2ispc/le2ispc.conf.php
 to the current version located at https://github.com/sjau/le2ispc/blob/master/le2ispc.conf.php";
+
     exit;
 }
 
