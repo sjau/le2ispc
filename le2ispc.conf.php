@@ -8,7 +8,7 @@ $server["version"]      = "2.4";        # If using apache, provide the version: 
 $server["htaccess"]     = "y";          # Set y/n; "y" will rename a .htaccess in the webroot for the time of the certificate update.
                                         # Some .htaccess cause otherwise the process to fail
 $server["modules"]      = "";           # Comma seperated list of modules that should be deactivated while let's encrypt is running, e.g. = "mod_proxy,mod_cache"
-$server["webroot"]      = "/var/www"    # Default webroot for the .well-known folder
+$server["webroot"]      = "/var/www";   # Default webroot for the .well-known folder
 
 # Provide API Infos
 $server["username"]     = "user";
@@ -30,7 +30,7 @@ $days                   = "60";
 *                                                                                                             *
 **************************************************************************************************************/
 
-$version                = "2016-02-23-2";
+$version                = "2016-02-23-3";
 
 # Echo the days for the renewal script
 echo "$days";
