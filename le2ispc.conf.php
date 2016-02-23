@@ -20,7 +20,8 @@ $email                  = "user@domain.tld";
 # Force Apache/Nginx to rewrite non-ssl to ssl
 $forceSSL               = "y";
 
-
+# Set number of days after which certs should be renewed
+$days                   = "60";
 
 /**************************************************************************************************************
 *                                                                                                             *
@@ -28,9 +29,10 @@ $forceSSL               = "y";
 *                                                                                                             *
 **************************************************************************************************************/
 
+$version                = "2016-02-23-1";
 
-
-$version                = "2016-01-14-1";
+# Echo the days for the renewal script
+echo "$days";
 
 
 ?>

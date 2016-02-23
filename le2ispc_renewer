@@ -1,26 +1,22 @@
 #!/usr/bin/env bash
 
 
-
-days="60"              # Set the number of days after which new certs should be requested
-
-
-
 #*************************************************************************************************************#
 #                                                                                                             #
 #                                         HERE BE DRAGONS                                                     #
 #                                                                                                             #
 #*************************************************************************************************************#
 
+# Get the period after which certs should be renewed
+days=$(php "/root/.le2ispc/le2ispc.conf.php")
+if [[ ! "${days}" -gt 0 ]]; then
+   echo "Couldn't get the correct amount of days after which certs should be renewed."
+   echo "Please check your config and retry."
+   exit 1
+fi
 
 
-# Find all dirs older than the limit
-#find /etc/letsencrypt/live -type d -mtime +"${days}" -exec bash -c 'domain=${1##*/}; echo "${domain}"' _ {} \;
-
-#find /etc/letsencrypt/live -type d -mtime +"60" -exec bash -c 'domain=${1##*/}; echo "${domain}"' _ {} \;
-
-
-
+# Check parameter input
 while getopts ":thd:" opt; do
   case $opt in
     d)  days="${OPTARG}"
