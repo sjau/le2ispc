@@ -44,7 +44,7 @@ done
 
 if [[ "${testrun}" = "yes" ]]; then
     echo "The following domains would have been renewed since ${days} days have passed."
-    find "/etc/letsencrypt/live" -type d -mtime +"${days}" -exec bash -c 'domain=${1##*/}; echo "${domain}"' _ {} \;
+    find "/etc/letsencrypt/live/"* -type d -mtime +"${days}" -exec bash -c 'domain=${1##*/}; echo "${domain}"' _ {} \;
 else
-    find /etc/letsencrypt/live -type d -mtime +"${days}" -exec bash -c 'domain=${1##*/}; le2ispc "${domain}"' _ {} \;
+    find "/etc/letsencrypt/live/"* -type d -mtime +"${days}" -exec bash -c 'domain=${1##*/}; le2ispc "${domain}"' _ {} \;
 fi
