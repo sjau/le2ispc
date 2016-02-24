@@ -73,6 +73,12 @@ if ($count != 1) {
 }
 $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $domainInfo = $row[0];
+# Check if domain is active
+$active = $domainInfo['active'];
+if ($active != 'y') {
+    echo "Domain name '$domain' is inactive. Abort getting certificate.";
+    exit;
+}
 # Set two vars that are required for Soap Connection
 $domain_id = $domainInfo['domain_id'];
 $server_id = $domainInfo['server_id'];
