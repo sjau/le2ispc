@@ -102,6 +102,24 @@ foreach ($subdomains as $subdomain) {
 
 
 
+# Check for aliases
+$stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `parent_domain_id` = ? AND `type` LIKE 'alias' AND active LIKE 'y'");
+$stmt->execute(array($domain_id));
+$row = $stmt->fetchAll(PDO::FETCH_ASSOC);
+foreach($row as $result) {
+    $alias = $result['domain'];
+    if(!empty($alias)) {
+        $domains .= " -d '$alias'";
+    }
+    # Also add 'www' subdomain
+    $www_subalias = 'www.' . $alias;
+    if (in_array($result['subdomain'], array('www','*')) && !in_array($www_subalias, $subdomains)) {
+        $domains = " -d 'www.$domain'";
+    }
+}
+
+
+
 # Make sure webroot authentication works for both
 echo "- Prepare Server for webroot authentication.\n";
 # https://letsencrypt.readthedocs.org/en/latest/api/plugins/webroot.html?highlight=webroot#module-letsencrypt.plugins.webroot
