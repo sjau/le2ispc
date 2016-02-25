@@ -103,6 +103,19 @@ foreach ($subdomains as $subdomain) {
 
 
 # Check for aliases
+$stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `parent_domain_id` = ? AND `type` LIKE 'subdomain' AND active LIKE 'y'");
+$stmt->execute(array($domain_id));
+$row = $stmt->fetchAll(PDO::FETCH_ASSOC);
+foreach($row as $result) {
+    $sub = $result['domain'];
+    if(!empty($sub)) {
+        $domains .= " -d '$sub'";
+    }
+}
+
+
+
+# Check for aliases
 $stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `parent_domain_id` = ? AND `type` LIKE 'alias' AND active LIKE 'y'");
 $stmt->execute(array($domain_id));
 $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
