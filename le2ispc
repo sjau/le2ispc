@@ -103,19 +103,6 @@ foreach ($subdomains as $subdomain) {
 
 
 # Check for aliases
-$stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `parent_domain_id` = ? AND `type` LIKE 'subdomain' AND active LIKE 'y'");
-$stmt->execute(array($domain_id));
-$row = $stmt->fetchAll(PDO::FETCH_ASSOC);
-foreach($row as $result) {
-    $sub = $result['domain'];
-    if(!empty($sub)) {
-        $domains .= " -d '$sub'";
-    }
-}
-
-
-
-# Check for aliases
 $stmt = $db->prepare("SELECT * FROM `web_domain` WHERE `parent_domain_id` = ? AND `type` LIKE 'alias' AND active LIKE 'y'");
 $stmt->execute(array($domain_id));
 $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -267,7 +254,24 @@ $params['ssl_cert']     = $cert;
 $params['ssl_bundle']   = $bundle;
 $params['ssl_action']   = 'save';
 # Forced ssl redirect
-if ( $server['type'] == 'apache' && $forceSSL == 'y' ) {
+if ( $server['type'] == 'apache' && $forceSSL == 'y' && $server['version'] == '2.4' ) {
+    # Check if the apache directives contains forced rewrite or nothing at all
+    if ( strpos($params['apache_directives'], 'RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}') !== false || strpos($params['apache_directives'], 'Redirect permanent / https://') === false ) {
+        # We have old rewrite rules, so replace them with the new redirect
+        $apache_directives = $params['apache_directives'];
+        $apache_directives = str_replace('RewriteEngine On', '', $apache_directives);
+        $apache_directives = str_replace('RewriteCond %{HTTPS} off', '', $apache_directives);
+        $apache_directives = str_replace('RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}', '', $apache_directives);
+        $apache_directives = str_replace('RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]', '', $apache_directives);
+        # Add new redirect rules
+        $params['apache_directives'] = "
+            <If \"%{HTTPS} == 'off'\">
+                Redirect permanent / https://$domain
+            </If>
+            "
+            . $apache_directives;
+    }
+} elseif ( $server['type'] == 'apache' && $forceSSL == 'y' && $server['version'] == '2.2' ) {
     # Check if the apache directives already contain forced rewrite
     if (strpos($params['apache_directives'], 'RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI}') === false) {
         # No rewrite rules detected, so lets add it
