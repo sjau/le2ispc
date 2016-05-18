@@ -207,7 +207,7 @@ if( $server['type'] == 'apache' && $server["modules"] != "") {
 # Run letsencrypt to create the certs;  --agree-eula is on current git (no Beta Testing) not required
 echo "- Run Let's Encrypt Tool\n";
 $webroot = "/var/www/";
-$command = "$letsencrypt --text --agree-tos --renew-by-default --rsa-key-size 4096 --email '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
+$command = "$letsencrypt --text --agree-tos --rsa-key-size 4096 --email '$email' $domains -a webroot --webroot-path " . $webroot . " certonly";
 if ($dry_run) {
     echo $command;
     echo "\nNothing executed (dry-run)\n";
