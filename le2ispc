@@ -114,7 +114,7 @@ foreach($row as $result) {
     # Also add 'www' subdomain
     $www_subalias = 'www.' . $alias;
     if (in_array($result['subdomain'], array('www','*')) && !in_array($www_subalias, $subdomains)) {
-        $domains = " -d 'www.$domain'";
+        $domains = " -d 'www.$alias'";
     }
 }
 
