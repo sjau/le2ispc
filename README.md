@@ -1,6 +1,13 @@
 # le2ispc
 Script to generate Let's Encrypt certs and add them to ISPConfig via API
 
+## Let's Encrypt support in ISPC 3.1
+
+**ISPConfig 3.1 has integreated Let's Encrypt support. So this will not be further developped.**
+
+**You might want to checkout [acme.sh] (https://github.com/Neilpang/acme.sh). It's a LE client purely written in posix shell and it features DNS-01 authentication.**
+**An according DNA API plugin exists for ISPConfig. Read [here] (https://www.howtoforge.com/community/threads/letsencrypt-automated-dns-01-challenge-for-ispc-3-1.74850/) for more info.**
+
 ## Limitations
 
 1. The le2ispc script currently only works with an ISPC installation that has MySQL and Apache.
